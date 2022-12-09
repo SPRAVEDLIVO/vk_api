@@ -65,10 +65,53 @@ class SecurityCheck(AuthError):
                     ' Please send bugreport (response in self.response)')
 
 
-class ApiError(VkApiError):
+prepared = """
+class ApiError{code}(RealApiError):
+    code = {code}
+    def __new__(cls, *args):
+        ins = RealApiError.__new__(cls, *args)
+        ins.__init__(*args)
+        return ins
+"""
+
+
+class ApiErrorMeta(type):
+    def __getitem__(self, code):
+        return ApiError.get(code)
+
+
+class ApiError(VkApiError, metaclass=ApiErrorMeta):
+    """ Прокси над RealApiError. Хранит экземпляры классов RealApiError под каждый код ошибки
+    Такие классы должны быть уникальны, поэтому в **prepared** присутсвует классовое поле code
+    При инициализации возвращается экземпляр RealApiError
+    """
+    _api_classes = {}
+
+    def __new__(cls, vk, method, values, raw, error):
+        code = error['error_code']
+        cl = cls.get(code)
+        ins = cl.__new__(cl, vk, method, values, raw, error)
+        ins.__init__(vk, method, values, raw, error)
+        return ins
+
+    @classmethod
+    def get(cls, code):
+        cl = cls._api_classes.get(code)
+        if cl is not None:
+            return cl
+        exec(prepared.format(code=code))
+        cl = eval(f"ApiError{code}")
+        cls._api_classes[code] = cl
+        return cl
+
+
+class RealApiError(ApiError):
+
+    def __new__(cls, vk, method, values, raw, error):
+        return VkApiError.__new__(cls)
 
     def __init__(self, vk, method, values, raw, error):
-        super(ApiError, self).__init__()
+        super(RealApiError, self).__init__()
 
         self.vk = vk
         self.method = method
