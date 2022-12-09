@@ -69,35 +69,28 @@ prepared = """
 class ApiError{code}(RealApiError):
     code = {code}
     def __new__(cls, *args):
-        ins = RealApiError.__new__(cls)
+        ins = RealApiError.__new__(cls, *args)
         ins.__init__(*args)
         return ins
 """
 
-""" Позволяет делать ApiError[code], первый уровень прокси над RealApiError """
 
-
-class ApiErrorProxy:
+class ApiErrorMeta(type):
     def __getitem__(self, code):
-        return _ApiError.get(code)
+        return ApiError.get(code)
 
-    def __call__(self, *args, **kwargs):
-        return _ApiError(*args, **kwargs)
-
-
-""" Второй уровень прокси, хранит экземпляры классов ApiError под каждый код ошибки
+class ApiError(VkApiError, metaclass=ApiErrorMeta):
+    """ Прокси над RealApiError. Хранит экземпляры классов RealApiError под каждый код ошибки
     Такие классы должны быть уникальны, поэтому в **prepared** присутсвует классовое поле code
     При инициализации возвращается экземпляр RealApiError
-"""
-
-
-class _ApiError:
+    """
     _api_classes = {}
 
     def __new__(cls, vk, method, values, raw, error):
         code = error['error_code']
         cl = cls.get(code)
-        ins = cl(vk, method, values, raw, error)
+        ins = cl.__new__(cl, vk, method, values, raw, error)
+        ins.__init__(vk, method, values, raw, error)
         return ins
 
     @classmethod
@@ -110,11 +103,10 @@ class _ApiError:
         cls._api_classes[code] = cl
         return cl
 
+class RealApiError(ApiError):
 
-ApiError = ApiErrorProxy()
-
-
-class RealApiError(VkApiError):
+    def __new__(cls, vk, method, values, raw, error):
+        return VkApiError.__new__(cls)
 
     def __init__(self, vk, method, values, raw, error):
         super(RealApiError, self).__init__()
