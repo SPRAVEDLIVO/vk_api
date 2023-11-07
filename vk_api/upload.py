@@ -8,6 +8,7 @@
 
 import requests
 from io import BytesIO
+from typing import Iterable, Union
 from functools import reduce
 
 from .vk_api import VkApi, VkApiMethod
@@ -26,11 +27,11 @@ class AttachmentHandler(dict):
 
     __slots__ = ('key', 'access_key', 'owner_id', 'id')
 
-    def __init__(self, key, raw):
+    def __init__(self, key, raw, id_key=None):
         super().__init__(raw)
         self.key = key
         self.owner_id = self["owner_id"]
-        self.id = self["id"]
+        self.id = self[id_key or 'id']
         self.access_key = self.get("access_key")
 
     def to_attachment(self):
@@ -50,24 +51,25 @@ class AttachmentsHandler(list):
     """
 
     __slots__ = ('raw',)
-
-    def __init__(self, key, raw) -> None:
-        super().__init__(AttachmentHandler(key, obj) for obj in raw)
+    
+    def __init__(self, key, raw=None, id_key=None) -> None:
+        if isinstance(key, Iterable) and all(isinstance(x, AttachmentHandler) for x in key):
+            super().__init__(key)
+            return
+        super().__init__(AttachmentHandler(key, obj, id_key) for obj in raw)
 
     def to_attachments(self):
         """Формирует вложение в формате вк"""
         return ",".join([obj.to_attachment() for obj in self])
 
     def __iadd__(self, other):
-        if not isinstance(other, type(self)) or not isinstance(other, list):
-            raise NotImplementedError(f"Class {self.__class__.__name__} doesn't support addition of type {type(other)}")
-        if isinstance(other, type(self)):
+        if not (isinstance(other, Union[self.__class__, list]) or isinstance(other, AttachmentHandler)):
+            raise NotImplementedError(f"Class {self.__class__.__name__} doesn't support addition of type {other.__class__.__name__}")
+        if isinstance(other, Union[self.__class__, list]):
             super().__iadd__(other)
-            return self
         else:
-            return self.__iadd__(AttachmentsHandler(other))
-
-    __add__ = __iadd__
+            self.append(other)
+        return self
 
 
 DISALLOWED_FROM_METHODS = ["from_link", "from_bytes"]
@@ -472,7 +474,7 @@ class VkUpload(object):
                 url,
                 files=f or None
             ).json())
-            return response
+            return AttachmentHandler("video", response, "video_id")
 
     def document(self, doc, title=None, tags=None, group_id=None,
                  to_wall=False, message_peer_id=None, doc_type=None):
