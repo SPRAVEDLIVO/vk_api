@@ -6,7 +6,7 @@
 :copyright: (c) 2019 python273
 """
 
-from enum import IntEnum
+from enum import IntEnum, Enum
 
 
 class VkUserPermissions(IntEnum):
@@ -79,3 +79,9 @@ class VkUserPermissions(IntEnum):
 
     #: Доступ к товарам.
     MARKET = 2**27
+
+
+class AudiosSearchOptions(Enum):
+    GLOBAL_AUDIOS = "search_global_audios"
+    MY_MUSIC = "search_owned_audios"
+    LYRICS = "_global_audios_lyrics"
