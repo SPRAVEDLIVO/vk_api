@@ -159,6 +159,7 @@ class VkAudio(object):
                     'access_hash': access_hash,
                     'is_loading_all': 1
                 },
+                headers={"X-Requested-With": "XMLHttpRequest"},
                 allow_redirects=False
             ).json()
 
@@ -590,7 +591,7 @@ class VkAudio(object):
 
         ids = scrap_ids_from_html(
             response.text,
-            filter_root_el={'class': 'audios_list'}
+            filter_root_el={'class': 'AttachmentsList'}
         )
 
         return scrap_tracks(
@@ -682,17 +683,30 @@ def scrap_ids_from_html(html, filter_root_el=None):
     for playlist in playlist_snippets:
         playlist.decompose()
 
-    for audio in root_el.find_all('div', {'class': 'audio_item'}):
+    tag_name = ('div', {'class': 'audio_item'})
+    if 'AttachmentsList' in filter_root_el.values():
+        tag_name = ('button', {'class': 'SecondaryAttachment'})
+
+    for audio in root_el.find_all(*tag_name):
         if 'audio_item_disabled' in audio['class']:
             continue
 
-        data_audio = json.loads(audio['data-audio'])
-        audio_hashes = data_audio[AUDIO_TUPLE["HASHES"]].split("/")
+        if 'data-audio' not in audio.attrs:
+            continue
 
-        full_id = (
-            str(data_audio[AUDIO_TUPLE["OWNER_ID"]]), str(data_audio[AUDIO_TUPLE["ID"]]
-                                                          ), audio_hashes[2], audio_hashes[5]
-        )
+        data_audio = json.loads(audio['data-audio'])
+
+        if isinstance(data_audio, list):
+            audio_hashes = data_audio[13].split("/")
+            full_id = (
+                str(data_audio[1]), str(data_audio[0]),
+                audio_hashes[2], audio_hashes[5]
+            )
+        else:
+            full_id = (
+                str(data_audio['owner_id']), str(data_audio['id']),
+                data_audio['actionHash'], data_audio['urlHash']
+            )
 
         if all(full_id):
             ids.append(full_id)
@@ -716,8 +730,8 @@ def scrap_tracks(ids, user_id, http, convert_m3u8_links=True):
 
         result = http.post(
             'https://m.vk.com/audio',
-            data={'act': 'reload_audio', 'ids': ','.join(
-                ['_'.join(i) for i in ids_group])}
+            data={'act': 'reload_audio', 'ids': ','.join(['_'.join(i) for i in ids_group])},
+            headers={"X-Requested-With": "XMLHttpRequest"},
         ).json()
 
         last_request = time.time()

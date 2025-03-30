@@ -6,12 +6,14 @@
 :copyright: (c) 2019 python273
 """
 
+import typing as t
 
 TWOFACTOR_CODE = -2
 HTTP_ERROR_CODE = -1
 TOO_MANY_RPS_CODE = 6
 CAPTCHA_ERROR_CODE = 14
 NEED_VALIDATION_CODE = 17
+CONFIRMATION_ERROR_CODE = 1110
 
 
 class VkApiError(Exception):

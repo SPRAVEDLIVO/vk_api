@@ -6,10 +6,34 @@
 :copyright: (c) 2019 python273
 """
 
-from enum import IntEnum, Enum
+import enum
+
+try:
+    from enum import StrEnum
+except ImportError:
+    class StrEnum(str, enum.Enum):
+        def _generate_next_value_(name, start, count, last_values):
+            return name.lower()
 
 
-class VkUserPermissions(IntEnum):
+class VerificationMethod(StrEnum):
+    """
+    Перечисление способов подтверждения входа в аккаунт.
+
+    EMAIL, SMS, CALLRESET и PUSH требуют вызова метода API для отправки.
+    """
+    PUSH = enum.auto()
+    EMAIL = enum.auto()
+    QR_CODE = enum.auto()
+    CODEGEN = enum.auto()
+    SMS = enum.auto()
+    CALLRESET = enum.auto()
+    PASSWORD = enum.auto()
+    RESERVE_CODE = enum.auto()
+    PASSKEY = enum.auto()
+
+
+class VkUserPermissions(enum.IntEnum):
     """
     Перечисление прав пользователя.
     Список прав получается побитовым сложением (x | y) каждого права.
@@ -81,7 +105,7 @@ class VkUserPermissions(IntEnum):
     MARKET = 2**27
 
 
-class AudiosSearchOptions(Enum):
+class AudiosSearchOptions(enum.Enum):
     GLOBAL_AUDIOS = "search_global_audios"
     MY_MUSIC = "search_owned_audios"
     LYRICS = "_global_audios_lyrics"
