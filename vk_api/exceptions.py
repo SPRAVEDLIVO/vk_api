@@ -149,7 +149,7 @@ class ApiHttpError(VkApiError):
 
 class Captcha(VkApiError):
 
-    def __init__(self, vk, captcha_sid, func, args=None, kwargs=None, url=None):
+    def __init__(self, vk, captcha_sid, func, args=None, kwargs=None, url=None, redirect_uri=None):
         super(Captcha, self).__init__()
 
         self.vk = vk
@@ -162,13 +162,14 @@ class Captcha(VkApiError):
 
         self.key = None
         self.url = url
+        self.redirect_uri = redirect_uri
         self.image = None
 
     def get_url(self):
         """ Получить ссылку на изображение капчи """
 
         if not self.url:
-            self.url = f'https://api.vk.com/captcha.php?sid={self.sid}'
+            self.url = f'https://api.vk.ru/captcha.php?sid={self.sid}'
 
         return self.url
 
@@ -180,10 +181,11 @@ class Captcha(VkApiError):
 
         return self.image
 
-    def try_again(self, key=None):
+    def try_again(self, key=None, success_token=None):
         """ Отправить запрос заново с ответом капчи
 
         :param key: ответ капчи
+        :param success_token: токен капчи с redirect_uri
         """
 
         if key:
@@ -192,6 +194,10 @@ class Captcha(VkApiError):
             self.kwargs.update({
                 'captcha_sid': self.sid,
                 'captcha_key': self.key
+            })
+        if success_token:
+            self.kwargs.update({
+                'success_token': success_token,
             })
 
         return self.func(*self.args, **self.kwargs)
